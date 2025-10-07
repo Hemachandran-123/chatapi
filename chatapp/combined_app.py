@@ -11,11 +11,10 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 
-# --- Database setup with SQLite (works locally & on Streamlit Cloud) ---
-DATABASE_URL = "sqlite:///chatbot.db"
+# Database setup with MySQL
+DATABASE_URL = "mysql+mysqlconnector://root:Mohana%40121@localhost/chatbotdb"
 
-# SQLite requires this option to work with multithreading (FastAPI + Streamlit)
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=False)
+engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 Base = declarative_base()
@@ -29,7 +28,7 @@ class ChatMessage(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# --- FastAPI app setup ---
+# FastAPI app setup
 app = FastAPI()
 
 class ChatRequest(BaseModel):
@@ -72,15 +71,14 @@ async def chat_endpoint(req: ChatRequest):
 def run_api():
     uvicorn.run(app, host="127.0.0.1", port=8000)
 
-# --- Start FastAPI in background thread ---
 if "api_thread" not in st.session_state:
     api_thread = threading.Thread(target=run_api, daemon=True)
     api_thread.start()
     st.session_state.api_thread = api_thread
     time.sleep(1)
 
-# --- Streamlit UI ---
-st.title("💬 Chatbot with SQLite Stored History")
+# Streamlit UI
+st.title("Obsure Chatbot ")
 
 # Initialize chat message list if missing
 if "messages" not in st.session_state:
@@ -103,8 +101,8 @@ def send_message(message):
 def clear_history():
     st.session_state.messages = []
 
-# Clear chat history button
-if st.button("🧹 Clear Chat History"):
+# Clear chat history button (optional)
+if st.button("Clear Chat History"):
     clear_history()
 
 def send_message_action():
@@ -120,16 +118,18 @@ def send_message_action():
 
     # Send to backend and get bot response
     bot_response = send_message(user_input)
+    # Append bot message
     st.session_state.messages.append(("bot", bot_response))
 
+    # Reset input box by clearing streamlit widget value on rerun
     st.session_state.is_sending = False
 
-# Input box with Enter to send
+# Input box with Enter to send, automatically cleared after sending
 st.text_input(
     "Type your message and press Enter",
     key="input_text",
     on_change=send_message_action,
-    value="",
+    value="",  # This clears the box on every rerun after sending
     placeholder="Type your message here...",
     disabled=st.session_state.is_sending
 )
@@ -138,9 +138,9 @@ st.text_input(
 if st.button("Send", disabled=st.session_state.is_sending):
     send_message_action()
 
-# Display chat messages
+# Show all chat messages in the main chat area (both user and bot)
 for sender, msg in st.session_state.messages:
     if sender == "user":
-        st.markdown(f"**🧑 You:** {msg}")
+        st.markdown(f"**You:** {msg}")
     else:
-        st.markdown(f"**🤖 Bot:** {msg}")
+        st.markdown(f"**Bot:** {msg}")
